@@ -17,6 +17,22 @@
             font-size: 16px;
             cursor: pointer;
         }
+        .progress-container {
+            margin: 20px auto;
+            width: 80%;
+            display: none;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 5px;
+        }
+        .progress {
+            height: 20px;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            width: 0%;
+        }
     </style>
 </head>
 <body>
@@ -25,5 +41,31 @@
         <input type="file" name="video" accept="video/*" required><br>
         <button type="submit">Upload & Proses</button>
     </form>
+    
+    <div class="progress-container" id="progressContainer">
+        <h3>Memproses Video...</h3>
+        <div class="progress-bar">
+            <div class="progress" id="progressBar"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Kode untuk menampilkan progress bar
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('progressContainer').style.display = 'block';
+            
+            // Simulasi progress (bisa diganti dengan polling ke server)
+            let progress = 0;
+            const progressBar = document.getElementById('progressBar');
+            const interval = setInterval(() => {
+                progress += 5;
+                progressBar.style.width = progress + '%';
+                
+                if (progress >= 100) {
+                    clearInterval(interval);
+                }
+            }, 500);
+        });
+    </script>
 </body>
-</html>
+        </html>
