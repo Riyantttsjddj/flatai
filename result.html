@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hasil Deteksi</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        .media-container { margin: 20px auto; max-width: 800px; }
+        video, img { max-width: 100%; border: 1px solid #ddd; }
+        .download-btn { 
+            display: inline-block;
+            padding: 10px 20px;
+            background: #4CAF50;
+            color: white;
+            text-decoration: none;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Hasil Deteksi Objek</h1>
+    <p>Jumlah objek terdeteksi: {{ count }}</p>
+    
+    <div class="media-container">
+        {% if media_type == 'video' %}
+        <video controls>
+            <source src="/download/output.mp4" type="video/mp4">
+            Browser tidak mendukung pemutar video.
+        </video>
+        {% else %}
+        <img src="/download/output.jpg" alt="Hasil Deteksi">
+        {% endif %}
+    </div>
+    
+    <a href="/download/{{ filename }}" class="download-btn">Unduh Hasil</a>
+    <br>
+    <a href="/">Kembali ke Beranda</a>
+</body>
+</html>

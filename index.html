@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload Media Deteksi</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        .upload-box { 
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 500px;
+            border-radius: 5px;
+        }
+        input[type="file"] { margin-bottom: 20px; }
+        button { 
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Deteksi Objek pada Foto/Video</h1>
+    
+    <div class="upload-box">
+        <form action="/upload" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept="video/*,image/*" required><br>
+            <button type="submit">Upload & Proses</button>
+        </form>
+    </div>
+    
+    <p>Format yang didukung: MP4, AVI, MOV, JPG, JPEG, PNG</p>
+</body>
+</html>
