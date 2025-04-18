@@ -1,92 +1,82 @@
-from flask import Flask, render_template, request, Response, redirect
+from flask import Flask, render_template, request, Response, redirect, flash, send_file
 import cv2
 import numpy as np
 import tensorflow as tf
 import os
+from werkzeug.utils import secure_filename
+from datetime import datetime
 
 app = Flask(__name__)
+app.secret_key = 'rahasia'
+app.config['UPLOAD_FOLDER'] = 'static'
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+app.config['ALLOWED_EXTENSIONS'] = {'mp4', 'avi', 'mov'}
+app.config['DOWNLOAD_TOKENS'] = {}
+
 MODEL_PATH = 'model.tflite'
-UPLOAD_FOLDER = 'static'
-OUTPUT_VIDEO = os.path.join(UPLOAD_FOLDER, 'output.mp4')
 
-interpreter = tf.lite.Interpreter(model_path=MODEL_PATH)
-interpreter.allocate_tensors()
-input_details = interpreter.get_input_details()
-output_details = interpreter.get_output_details()
-height, width = input_details[0]['shape'][1:3]
-
-def detect(image_np, threshold=0.5):
-    input_data = np.expand_dims(image_np, axis=0).astype(np.float32)
-    interpreter.set_tensor(input_details[0]['index'], input_data)
-    interpreter.invoke()
-    output = interpreter.get_tensor(output_details[0]['index'])[0]
-
-    boxes = []
-    try:
-        x_center, y_center, w, h, conf = output
-        for i in range(conf.shape[0]):
-            if conf[i] >= threshold:
-                xc, yc, bw, bh = x_center[i], y_center[i], w[i], h[i]
-                xmin = max(int((xc - bw / 2) * width), 0)
-                ymin = max(int((yc - bh / 2) * height), 0)
-                xmax = min(int((xc + bw / 2) * width), width)
-                ymax = min(int((yc + bh / 2) * height), height)
-                boxes.append((xmin, ymin, xmax, ymax))
-    except:
-        pass
-    return boxes
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/upload_video', methods=['POST'])
-def upload_video():
-    file = request.files['video']
-    if not file:
-        return "No file uploaded", 400
-    video_path = os.path.join(UPLOAD_FOLDER, file.filename)
-    file.save(video_path)
-
-    cap = cv2.VideoCapture(video_path)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    fps = int(cap.get(cv2.CAP_PROP_FPS))
-    frame_size = (width, height)
-    out = cv2.VideoWriter(OUTPUT_VIDEO, fourcc, fps, frame_size)
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame_resized = cv2.resize(frame, (width, height))
-        input_frame = frame_resized.astype(np.float32) / 255.0
-        boxes = detect(input_frame)
-
-        for (x1, y1, x2, y2) in boxes:
-            cv2.rectangle(frame_resized, (x1, y1), (x2, y2), (0, 255, 0), 2)
-
-        out.write(frame_resized)
-
-    cap.release()
-    out.release()
-    return redirect('/download')
+# ... (kode sebelumnya tetap sama) ...
 
 @app.route('/download')
-def download_file():
-    def generate():
-        with open(OUTPUT_VIDEO, 'rb') as f:
-            while True:
-                chunk = f.read(8192)
-                if not chunk:
-                    break
-                yield chunk
+def download_page():
+    # Halaman untuk memulai download
+    if not os.path.exists(OUTPUT_VIDEO):
+        flash('Video hasil belum tersedia. Harap proses video terlebih dahulu.')
+        return redirect('/')
+    
+    # Generate token unik untuk download
+    download_token = str(datetime.now().timestamp())
+    app.config['DOWNLOAD_TOKENS'][download_token] = OUTPUT_VIDEO
+    
+    return render_template('download.html', token=download_token)
 
-    file_size = os.path.getsize(OUTPUT_VIDEO)
-    response = Response(generate(), mimetype='video/mp4')
-    response.headers['Content-Disposition'] = 'attachment; filename=output.mp4'
-    response.headers['Content-Length'] = str(file_size)
+@app.route('/download_video/<token>')
+def download_video(token):
+    if token not in app.config['DOWNLOAD_TOKENS']:
+        return "Token download tidak valid", 404
+    
+    video_path = app.config['DOWNLOAD_TOKENS'][token]
+    
+    # Hapus token setelah digunakan untuk mencegah download berulang
+    app.config['DOWNLOAD_TOKENS'].pop(token, None)
+    
+    # Mendukung pause/resume download
+    range_header = request.headers.get('Range', None)
+    file_size = os.path.getsize(video_path)
+    
+    if range_header:
+        # Parsing range header
+        start, end = range_header.replace('bytes=', '').split('-')
+        start = int(start)
+        end = int(end) if end else file_size - 1
+        
+        # Membaca bagian file yang diminta
+        with open(video_path, 'rb') as f:
+            f.seek(start)
+            data = f.read(end - start + 1)
+        
+        # Membuat response partial content
+        response = Response(
+            data,
+            206,
+            mimetype='video/mp4',
+            content_type='video/mp4',
+            direct_passthrough=True
+        )
+        response.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
+        response.headers.add('Accept-Ranges', 'bytes')
+        response.headers.add('Content-Length', str(end - start + 1))
+    else:
+        # Download biasa jika tidak ada range header
+        response = send_file(
+            video_path,
+            mimetype='video/mp4',
+            as_attachment=True,
+            download_name='hasil_deteksi.mp4'
+        )
+        response.headers['Content-Length'] = file_size
+    
     response.headers['Cache-Control'] = 'no-store'
     return response
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+# ... (kode lainnya tetap sama) ...
